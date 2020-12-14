@@ -20,8 +20,10 @@
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(w, h) {
+  this.width = w;
+  this.height = h;
+  this.getArea = () => this.width * this.height;
 }
 
 
@@ -35,8 +37,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 
@@ -51,8 +53,10 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const objFromJson = JSON.parse(json);
+  const objFromProto = Object.create(proto);
+  return Object.assign(objFromProto, objFromJson);
 }
 
 
@@ -111,32 +115,74 @@ function fromJSON(/* proto, json */) {
  */
 
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  selector: '',
+
+  clone(value) {
+    const val = { ...this };
+    val.selector = value;
+    return val;
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  throwDoubleInvocationError() {
+    throw new Error('Element, id and pseudo-element should not occur more then one time inside the selector');
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  throwOrderInvocationError() {
+    throw new Error('Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element');
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  lock(errorFunction, ...methods) {
+    methods.forEach((method) => {
+      this[method] = errorFunction;
+    });
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    const selec = this.clone(this.selector + value);
+    selec.element = this.throwDoubleInvocationError;
+    return selec;
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    const selec = this.clone(`${this.selector}#${value}`);
+    selec.id = this.throwDoubleInvocationError;
+    selec.element = this.throwOrderInvocationError;
+    return selec;
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  class(value) {
+    const selec = this.clone(`${this.selector}.${value}`);
+    selec.lock(this.throwOrderInvocationError, 'id', 'element');
+    return selec;
+  },
+
+  attr(value) {
+    const selec = this.clone(`${this.selector}[${value}]`);
+    selec.lock(this.throwOrderInvocationError, 'id', 'element', 'class');
+    return selec;
+  },
+
+  pseudoClass(value) {
+    const selec = this.clone(`${this.selector}:${value}`);
+    selec.lock(this.throwOrderInvocationError, 'id', 'element', 'class', 'attr');
+    return selec;
+  },
+
+  pseudoElement(value) {
+    const selec = this.clone(`${this.selector}::${value}`);
+    selec.pseudoElement = this.throwDoubleInvocationError;
+    selec.lock(this.throwOrderInvocationError, 'id', 'element', 'class', 'attr', 'pseudoClass');
+    return selec;
+  },
+
+  combine(selector1, combinator, selector2) {
+    const selec = { ...this };
+    selec.selector = `${selector1.stringify()} ${combinator} ${selector2.stringify()}`;
+    return selec;
+  },
+
+  stringify() {
+    return this.selector;
   },
 };
 
